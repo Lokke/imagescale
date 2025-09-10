@@ -33,13 +33,25 @@ sudo systemctl start docker
 git clone https://github.com/Lokke/imagescale.git
 cd imagescale
 
-# 2. EINEN BEFEHL - Das war's!
+# 2. EINEN BEFEHL - Das war's! (macht automatisch Git-Update + Start)
 ./docker-run.sh
 ```
 
 **Für Windows-Opfer:**
 ```cmd
 docker-run.bat
+```
+
+**💡 WICHTIG: Immer das .sh Script verwenden!**
+- Macht automatisch Git-Update vor dem Start
+- Stoppt alte Container sauber
+- Bessere Fehlerbehandlung
+- Perfekt für Server
+
+### 🔄 Updates holen (automatisch!)
+```bash
+# Einfach nochmal ausführen - holt automatisch Updates!
+./docker-run.sh
 ```
 
 ### 🎯 Fertig! 

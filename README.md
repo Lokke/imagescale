@@ -70,8 +70,9 @@ imagescale/
 ## 🍺 Schnell-Anleitung für Eilige
 
 1. **Installation:** `git clone https://github.com/Lokke/imagescale.git && cd imagescale && ./docker-run.sh`
-2. **Benutzen:** Öffne <http://localhost:8724>, Logo reinziehen, "Logo verarbeiten" klicken, fertig!
-3. **Bei Problemen:** Lies die [ausführliche Anleitung für Besoffene](ANLEITUNG-FUER-BESOFFENE.md) 🍻
+2. **Updates & Start:** `./docker-run.sh` (macht automatisch Git-Update + Docker-Start)
+3. **Benutzen:** Öffne <http://localhost:8724>, Logo reinziehen, "Logo verarbeiten" klicken, fertig!
+4. **Bei Problemen:** Lies die [ausführliche Anleitung für Besoffene](ANLEITUNG-FUER-BESOFFENE.md) 🍻
 
 ## 📁 Weitere Dateien
 
