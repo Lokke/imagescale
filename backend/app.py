@@ -75,10 +75,18 @@ def process_image(img, size=300, threshold=50, invert=False, alpha_threshold=30)
             # Use the minimum of calculated and original alpha to preserve transparency
             final_alpha = min(calculated_alpha, original_alpha)
         
-        # WICHTIG: Apply alpha threshold to ALL final results before adding to image
-        # This prevents very faint pixels from interfering with bounding box calculation
+        # KRITISCH: Apply alpha threshold to ALL final results
+        # This prevents grayscale areas from interfering with bounding box
         if final_alpha <= alpha_threshold:
             final_alpha = 0
+        
+        # ZUSÄTZLICH: Auch bei der Helligkeitsbewertung Alpha-Schwelle anwenden
+        # Wenn das resultierende Alpha zu schwach wäre, mache Pixel komplett transparent
+        if pixel_brightness <= threshold:
+            # Für dunkle Pixel: Prüfe ob die berechnete Transparenz über der Schwelle liegt
+            test_alpha = int((pixel_brightness / threshold) * 255)
+            if test_alpha <= alpha_threshold:
+                final_alpha = 0  # Komplett transparent wenn zu schwach
             
         result_data.append((255, 255, 255, final_alpha))
     
