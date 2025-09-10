@@ -133,8 +133,10 @@ def process_image(img, size=300, threshold=50, invert=False, alpha_threshold=30)
     result.paste(resized_img, (x_offset, y_offset), resized_img)
     
     # NOW apply the new smart bounding box logic on the final result
-    # Use alpha_threshold as brightness threshold (0-100 -> 100-255 mapping)
-    brightness_threshold = 100 + (alpha_threshold * 1.55)  # Map 0-100 to 100-255
+    # Use alpha_threshold as brightness threshold (0-100 -> 150-240 mapping)
+    # This ensures even high values still find bright content
+    brightness_threshold = 150 + (alpha_threshold * 0.9)  # Map 0-100 to 150-240
+    debug_print(f"Mapped alpha_threshold {alpha_threshold} to brightness_threshold {int(brightness_threshold)}")
     return apply_smart_bounding_box(result, size, int(brightness_threshold))
 
 def apply_smart_bounding_box(img, target_size, brightness_threshold=200):
@@ -166,8 +168,26 @@ def apply_smart_bounding_box(img, target_size, brightness_threshold=200):
                 max_y = max(max_y, y)
     
     if not found_bright:
-        debug_print("No bright pixels found, returning original")
-        return img
+        debug_print(f"No pixels found above brightness {brightness_threshold}, trying fallback with 200")
+        # Fallback: Try with lower threshold
+        fallback_threshold = 200
+        for y in range(height):
+            for x in range(width):
+                gray_val = gray.getpixel((x, y))
+                alpha_val = img.getpixel((x, y))[3] if img.mode == 'RGBA' else 255
+                
+                if gray_val > fallback_threshold and alpha_val > 100:
+                    found_bright = True
+                    min_x = min(min_x, x)
+                    min_y = min(min_y, y)
+                    max_x = max(max_x, x)
+                    max_y = max(max_y, y)
+        
+        if not found_bright:
+            debug_print("Even fallback threshold failed, returning original")
+            return img
+        else:
+            debug_print(f"Fallback successful with threshold {fallback_threshold}")
     
     # Add 5 pixel padding around bright content
     padding = 5
