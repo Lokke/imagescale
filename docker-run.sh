@@ -20,8 +20,8 @@ fi
 
 echo "🔨 Building Band-Logo Processing Tool..."
 
-# Build the Docker image
-docker build -t band-logo-tool .
+# Build the Docker image with no cache to ensure latest changes
+docker build --no-cache -t band-logo-tool .
 
 if [ $? -eq 0 ]; then
     echo "✅ Build successful! Starting container..."

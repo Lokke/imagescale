@@ -15,8 +15,8 @@ if %ERRORLEVEL% EQU 0 (
 
 echo 🔨 Building Band-Logo Processing Tool...
 
-REM Build the Docker image
-docker build -t band-logo-tool .
+REM Build the Docker image with no cache to ensure latest changes
+docker build --no-cache -t band-logo-tool .
 
 if %ERRORLEVEL% EQU 0 (
     echo ✅ Build successful! Starting container...
