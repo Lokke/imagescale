@@ -7,6 +7,23 @@ import os
 app = Flask(__name__, static_folder='../frontend')
 CORS(app)  # Enable CORS for all routes
 
+# Global debug log collector
+debug_logs = []
+
+def debug_print(message):
+    """Custom debug print that collects logs"""
+    print(message)  # Still print to console
+    debug_logs.append(message)
+
+def clear_debug_logs():
+    """Clear the debug log"""
+    global debug_logs
+    debug_logs = []
+
+def get_debug_logs():
+    """Get current debug logs"""
+    return debug_logs.copy()
+
 @app.route('/')
 def index():
     """Serve the frontend HTML"""
@@ -94,92 +111,93 @@ def process_image(img, size=300, threshold=50, invert=False, alpha_threshold=30)
     white_img = Image.new('RGBA', img.size)
     white_img.putdata(result_data)
     
-    # Custom bounding box calculation that respects alpha threshold
-    # PIL's getbbox() might not work correctly with our alpha threshold logic
-    width, height = white_img.size
+    # Scale to final size FIRST, then apply bounding box logic
+    # Calculate scaling to fit in target size while maintaining aspect ratio
+    img_w, img_h = white_img.size
+    scale = min(size / img_w, size / img_h)
+    new_w = int(img_w * scale)
+    new_h = int(img_h * scale)
+    
+    # Resize the processed image to target size
+    if scale != 1.0:
+        resized_img = white_img.resize((new_w, new_h), Image.Resampling.LANCZOS)
+    else:
+        resized_img = white_img
+    
+    # Create final canvas
+    result = Image.new('RGBA', (size, size), (0, 0, 0, 0))
+    
+    # Center the resized image on canvas
+    x_offset = (size - new_w) // 2
+    y_offset = (size - new_h) // 2
+    result.paste(resized_img, (x_offset, y_offset), resized_img)
+    
+    # NOW apply the new smart bounding box logic on the final result
+    # Use alpha_threshold as brightness threshold (0-100 -> 100-255 mapping)
+    brightness_threshold = 100 + (alpha_threshold * 1.55)  # Map 0-100 to 100-255
+    return apply_smart_bounding_box(result, size, int(brightness_threshold))
+
+def apply_smart_bounding_box(img, target_size, brightness_threshold=200):
+    """
+    Apply smart bounding box that only considers very bright pixels
+    with 5 pixel padding around the content
+    """
+    debug_print(f"Applying smart bounding box with brightness_threshold={brightness_threshold}")
+    
+    # Convert to grayscale to find bright pixels
+    gray = img.convert('L')
+    width, height = img.size
+    
+    # Find all very bright pixels (brightness > threshold)
     min_x, min_y, max_x, max_y = width, height, 0, 0
-    
-    # Find bounds of pixels that are truly opaque (alpha > alpha_threshold)
-    pixels = list(white_img.getdata())
-    found_content = False
-    
-    # DEBUG: Count alpha values
-    alpha_counts = {}
-    for pixel in pixels:
-        alpha = pixel[3]
-        alpha_counts[alpha] = alpha_counts.get(alpha, 0) + 1
-    
-    print(f"DEBUG: Alpha distribution after processing:")
-    for alpha, count in sorted(alpha_counts.items()):
-        if count > 10:  # Only show significant counts
-            print(f"  Alpha {alpha}: {count} pixels")
+    found_bright = False
     
     for y in range(height):
         for x in range(width):
-            pixel_alpha = pixels[y * width + x][3]
-            if pixel_alpha > alpha_threshold:  # Only consider pixels above threshold
-                found_content = True
+            # Check if pixel is bright enough and not transparent
+            gray_val = gray.getpixel((x, y))
+            alpha_val = img.getpixel((x, y))[3] if img.mode == 'RGBA' else 255
+            
+            if gray_val > brightness_threshold and alpha_val > 100:  # Bright and opaque
+                found_bright = True
                 min_x = min(min_x, x)
                 min_y = min(min_y, y)
                 max_x = max(max_x, x)
                 max_y = max(max_y, y)
     
-    print(f"DEBUG: Using alpha_threshold={alpha_threshold}")
-    print(f"DEBUG: Found content: {found_content}")
+    if not found_bright:
+        debug_print("No bright pixels found, returning original")
+        return img
     
-    if not found_content:
-        print("DEBUG: No content found above alpha threshold!")
-        # If no content found, return empty transparent image
-        result = Image.new('RGBA', (size, size), (0, 0, 0, 0))
-        return result
+    # Add 5 pixel padding around bright content
+    padding = 5
+    crop_x1 = max(0, min_x - padding)
+    crop_y1 = max(0, min_y - padding)
+    crop_x2 = min(width, max_x + 1 + padding)
+    crop_y2 = min(height, max_y + 1 + padding)
     
-    # Create custom bounding box
-    bbox = (min_x, min_y, max_x + 1, max_y + 1)
-    print(f"DEBUG: Custom bounding box: {bbox}")
+    crop_bbox = (crop_x1, crop_y1, crop_x2, crop_y2)
+    debug_print(f"Bright pixel bounds: ({min_x}, {min_y}, {max_x}, {max_y})")
+    debug_print(f"Crop with padding: {crop_bbox}")
     
-    # Compare with PIL's bbox
-    pil_bbox = white_img.getbbox()
-    print(f"DEBUG: PIL bounding box: {pil_bbox}")
+    # Crop to bright content with padding
+    cropped = img.crop(crop_bbox)
     
-    # Crop to content (tight crop around visible white pixels)
-    cropped = white_img.crop(bbox)
-    
-    # Calculate scaling to fit in target size while maintaining aspect ratio
+    # Make it square and center it
     crop_w, crop_h = cropped.size
-    
-    # Make it a square automatically
     if crop_w != crop_h:
-        # Use the larger dimension to create a square
         max_dim = max(crop_w, crop_h)
         square_img = Image.new('RGBA', (max_dim, max_dim), (0, 0, 0, 0))
-        x_offset = (max_dim - crop_w) // 2
-        y_offset = (max_dim - crop_h) // 2
-        square_img.paste(cropped, (x_offset, y_offset), cropped)
+        x_center = (max_dim - crop_w) // 2
+        y_center = (max_dim - crop_h) // 2
+        square_img.paste(cropped, (x_center, y_center), cropped)
         cropped = square_img
-        crop_w, crop_h = max_dim, max_dim
     
-    # Scale to final size with high quality resampling
-    scale = min(size / crop_w, size / crop_h)
-    new_w = int(crop_w * scale)
-    new_h = int(crop_h * scale)
+    # Scale to final target size
+    final_result = cropped.resize((target_size, target_size), Image.Resampling.LANCZOS)
     
-    # Use the best resampling method for scaling down
-    if scale < 1.0:
-        # Scaling down - use LANCZOS for best quality
-        resized = cropped.resize((new_w, new_h), Image.Resampling.LANCZOS)
-    else:
-        # Scaling up - use LANCZOS as well, but this should be rare now
-        resized = cropped.resize((new_w, new_h), Image.Resampling.LANCZOS)
-    
-    # Create final image with transparent background
-    result = Image.new('RGBA', (size, size), (0, 0, 0, 0))
-    
-    # Center the resized image
-    x = (size - new_w) // 2
-    y = (size - new_h) // 2
-    result.paste(resized, (x, y), resized)
-    
-    return result
+    debug_print(f"Final result size: {final_result.size}")
+    return final_result
 
 @app.route('/upload', methods=['POST'])
 def upload_image():
@@ -195,9 +213,10 @@ def upload_image():
     version = request.form.get('version', 'normal')
     
     try:
+        clear_debug_logs()  # Clear previous logs
         img = Image.open(file.stream)
-        print(f"DEBUG: Original image size: {img.size}, mode: {img.mode}")
-        print(f"DEBUG: Parameters - size={size}, threshold={threshold}, alpha_threshold={alpha_threshold}")
+        debug_print(f"Original image size: {img.size}, mode: {img.mode}")
+        debug_print(f"Parameters - size={size}, threshold={threshold}, alpha_threshold={alpha_threshold}")
         
         # Process with or without inversion
         if version == 'inverted':
@@ -210,9 +229,24 @@ def upload_image():
         output = io.BytesIO()
         processed_img.save(output, format='PNG')
         output.seek(0)
-        return send_file(output, mimetype='image/png', as_attachment=True, download_name=filename)
+        
+        # Create response with debug logs
+        response = send_file(output, mimetype='image/png', as_attachment=True, download_name=filename)
+        
+        # Add debug logs as custom header (JSON encoded)
+        import json
+        debug_data = json.dumps(get_debug_logs())
+        response.headers['X-Debug-Logs'] = debug_data
+        
+        return response
     except Exception as e:
-        return jsonify({'error': f'Image processing failed: {str(e)}'}), 500
+        debug_print(f"ERROR: {str(e)}")
+        return jsonify({'error': f'Image processing failed: {str(e)}', 'debug_logs': get_debug_logs()}), 500
+
+@app.route('/debug-logs', methods=['GET'])
+def get_debug_logs_endpoint():
+    """Get current debug logs as JSON"""
+    return jsonify({'logs': get_debug_logs()})
 
 if __name__ == '__main__':
     # Development server
