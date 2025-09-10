@@ -276,6 +276,15 @@
                     </div>
                     <small style="color: #666;">Hellere Bereiche werden zu weißem Logo, dunklere transparent</small>
                 </div>
+                
+                <div class="control-group">
+                    <label for="alphaThresholdInput">Transparenz-Bereinigung:</label>
+                    <div class="threshold-container">
+                        <input type="range" id="alphaThresholdInput" name="alpha_threshold" min="0" max="100" value="30">
+                        <span class="threshold-value" id="alphaThresholdValue">30</span>
+                    </div>
+                    <small style="color: #666;">Höhere Werte entfernen mehr schwach transparente Pixel für besseres Zentrieren</small>
+                </div>
             </div>
             
             <button type="submit" class="process-btn" id="processBtn">
@@ -299,6 +308,8 @@
         const fileInput = document.getElementById('fileInput');
         const thresholdInput = document.getElementById('thresholdInput');
         const thresholdValue = document.getElementById('thresholdValue');
+        const alphaThresholdInput = document.getElementById('alphaThresholdInput');
+        const alphaThresholdValue = document.getElementById('alphaThresholdValue');
         const processBtn = document.getElementById('processBtn');
         const loading = document.getElementById('loading');
         const preview = document.getElementById('preview');
@@ -307,6 +318,11 @@
         // Update threshold display
         thresholdInput.addEventListener('input', () => {
             thresholdValue.textContent = thresholdInput.value;
+        });
+        
+        // Update alpha threshold display
+        alphaThresholdInput.addEventListener('input', () => {
+            alphaThresholdValue.textContent = alphaThresholdInput.value;
         });
         
         // Drag and drop functionality
@@ -362,12 +378,14 @@
             formData.append('image', file);
             formData.append('size', document.getElementById('sizeInput').value);
             formData.append('threshold', thresholdInput.value);
+            formData.append('alpha_threshold', alphaThresholdInput.value);
             formData.append('version', 'normal');
             
             const formDataInverted = new FormData();
             formDataInverted.append('image', file);
             formDataInverted.append('size', document.getElementById('sizeInput').value);
             formDataInverted.append('threshold', thresholdInput.value);
+            formDataInverted.append('alpha_threshold', alphaThresholdInput.value);
             formDataInverted.append('version', 'inverted');
             
             try {

@@ -17,9 +17,11 @@ def static_files(filename):
     """Serve static files from frontend folder"""
     return send_from_directory('../frontend', filename)
 
-def process_image(img, size=300, threshold=50, invert=False):
+def process_image(img, size=300, threshold=50, invert=False, alpha_threshold=30):
     """Process image: convert all colors to white, make transparent based on brightness
-    Uses high-resolution processing to avoid pixelation in larger outputs"""
+    Uses high-resolution processing to avoid pixelation in larger outputs
+    alpha_threshold: Pixels with alpha below this value become fully transparent (0-255)
+    """
     
     # Convert to RGBA if not already
     img = img.convert('RGBA')
@@ -48,7 +50,7 @@ def process_image(img, size=300, threshold=50, invert=False):
     gray_data = gray.getdata()
     rgba_data = img.getdata()
     
-    alpha_threshold = 30  # Pixels with alpha below this become fully transparent
+    alpha_threshold = alpha_threshold  # Use the parameter value instead of hardcoded
     
     for i, pixel_brightness in enumerate(gray_data):
         # Get original alpha channel
@@ -141,6 +143,7 @@ def upload_image():
     # Get optional parameters
     size = int(request.form.get('size', 300))
     threshold = int(request.form.get('threshold', 50))
+    alpha_threshold = int(request.form.get('alpha_threshold', 30))
     version = request.form.get('version', 'normal')
     
     try:
@@ -148,10 +151,10 @@ def upload_image():
         
         # Process with or without inversion
         if version == 'inverted':
-            processed_img = process_image(img, size, threshold, invert=True)
+            processed_img = process_image(img, size, threshold, invert=True, alpha_threshold=alpha_threshold)
             filename = f'band_logo_inverted_{size}x{size}.png'
         else:
-            processed_img = process_image(img, size, threshold, invert=False)
+            processed_img = process_image(img, size, threshold, invert=False, alpha_threshold=alpha_threshold)
             filename = f'band_logo_{size}x{size}.png'
             
         output = io.BytesIO()
