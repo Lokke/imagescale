@@ -48,12 +48,14 @@ def process_image(img, size=300, threshold=50, invert=False):
     gray_data = gray.getdata()
     rgba_data = img.getdata()
     
+    alpha_threshold = 30  # Pixels with alpha below this become fully transparent
+    
     for i, pixel_brightness in enumerate(gray_data):
         # Get original alpha channel
         original_alpha = rgba_data[i][3] if len(rgba_data[i]) == 4 else 255
         
-        # If original pixel was transparent, keep it transparent
-        if original_alpha == 0:
+        # If original pixel was transparent or nearly transparent, keep it transparent
+        if original_alpha <= alpha_threshold:
             result_data.append((255, 255, 255, 0))
             continue
             
@@ -63,14 +65,20 @@ def process_image(img, size=300, threshold=50, invert=False):
             
         if pixel_brightness > threshold:
             # Bright enough → white pixel with original opacity
-            result_data.append((255, 255, 255, original_alpha))
+            final_alpha = original_alpha
         else:
             # Too dark → make transparent, but respect original transparency
             # Gradual transparency based on brightness for smoother edges
             calculated_alpha = max(0, min(255, int((pixel_brightness / threshold) * 255)))
             # Use the minimum of calculated and original alpha to preserve transparency
             final_alpha = min(calculated_alpha, original_alpha)
-            result_data.append((255, 255, 255, final_alpha))
+        
+        # WICHTIG: Apply alpha threshold to ALL final results before adding to image
+        # This prevents very faint pixels from interfering with bounding box calculation
+        if final_alpha <= alpha_threshold:
+            final_alpha = 0
+            
+        result_data.append((255, 255, 255, final_alpha))
     
     # Create new image with white + transparency
     white_img = Image.new('RGBA', img.size)
