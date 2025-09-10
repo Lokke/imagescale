@@ -86,12 +86,32 @@ def process_image(img, size=300, threshold=50, invert=False, alpha_threshold=30)
     white_img = Image.new('RGBA', img.size)
     white_img.putdata(result_data)
     
-    # Get bounding box of non-transparent pixels
-    bbox = white_img.getbbox()
-    if not bbox:
+    # Custom bounding box calculation that respects alpha threshold
+    # PIL's getbbox() might not work correctly with our alpha threshold logic
+    width, height = white_img.size
+    min_x, min_y, max_x, max_y = width, height, 0, 0
+    
+    # Find bounds of pixels that are truly opaque (alpha > alpha_threshold)
+    pixels = list(white_img.getdata())
+    found_content = False
+    
+    for y in range(height):
+        for x in range(width):
+            pixel_alpha = pixels[y * width + x][3]
+            if pixel_alpha > alpha_threshold:  # Only consider pixels above threshold
+                found_content = True
+                min_x = min(min_x, x)
+                min_y = min(min_y, y)
+                max_x = max(max_x, x)
+                max_y = max(max_y, y)
+    
+    if not found_content:
         # If no content found, return empty transparent image
         result = Image.new('RGBA', (size, size), (0, 0, 0, 0))
         return result
+    
+    # Create custom bounding box
+    bbox = (min_x, min_y, max_x + 1, max_y + 1)
     
     # Crop to content (tight crop around visible white pixels)
     cropped = white_img.crop(bbox)
