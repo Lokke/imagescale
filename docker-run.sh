@@ -10,6 +10,10 @@ git reset --hard origin/main
 
 if [ $? -eq 0 ]; then
     echo "✅ Git update successful!"
+    # Fix permissions after git reset
+    echo "🔧 Fixing file permissions..."
+    chmod +x docker-run.sh
+    chmod +x docker-run.bat
 else
     echo "⚠️  Git update failed, continuing with current version..."
 fi

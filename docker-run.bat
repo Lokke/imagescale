@@ -8,6 +8,7 @@ git reset --hard origin/main
 
 if %ERRORLEVEL% EQU 0 (
     echo ✅ Git update successful!
+    echo 🔧 Git update completed...
 ) else (
     echo ⚠️  Git update failed, continuing with current version...
 )
