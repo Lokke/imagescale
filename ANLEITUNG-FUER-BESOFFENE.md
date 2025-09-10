@@ -134,8 +134,15 @@ docker run -d -p 8724:8724 --name imagescale-app band-logo-tool
 ### 📸 Beste Bilder für die Verarbeitung:
 - **Gut:** Schwarzes Logo auf weißem Hintergrund
 - **Auch gut:** Weißes Logo auf dunklem Hintergrund (dann "Invertiert" nutzen)
+- **Perfekt:** PNG mit transparentem Hintergrund (bleibt transparent!)
 - **Schlecht:** Bunte Logos auf buntem Hintergrund
 - **Völlig daneben:** Screenshots von WhatsApp
+
+### 🎨 Transparenz-Magie:
+- **Bereits transparente Bereiche** bleiben IMMER transparent
+- **Dunkle Bereiche** werden transparent gemacht
+- **Helle Bereiche** werden weiß
+- **Ursprüngliche Transparenz** wird nie überschrieben!
 
 ### 🎨 Wann welche Version nutzen:
 - **Normal (weiß):** Für dunkle Website-Hintergründe

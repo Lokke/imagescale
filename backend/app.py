@@ -43,23 +43,34 @@ def process_image(img, size=300, threshold=50, invert=False):
     # Convert to grayscale to measure brightness/darkness
     gray = img.convert('L')
     
-    # Create result image: all visible pixels become white
+    # Create result image: all visible pixels become white, preserve original transparency
     result_data = []
     gray_data = gray.getdata()
+    rgba_data = img.getdata()
     
-    for pixel_brightness in gray_data:
+    for i, pixel_brightness in enumerate(gray_data):
+        # Get original alpha channel
+        original_alpha = rgba_data[i][3] if len(rgba_data[i]) == 4 else 255
+        
+        # If original pixel was transparent, keep it transparent
+        if original_alpha == 0:
+            result_data.append((255, 255, 255, 0))
+            continue
+            
         # Apply inversion if requested
         if invert:
             pixel_brightness = 255 - pixel_brightness
             
         if pixel_brightness > threshold:
-            # Bright enough → white pixel with full opacity
-            result_data.append((255, 255, 255, 255))
+            # Bright enough → white pixel with original opacity
+            result_data.append((255, 255, 255, original_alpha))
         else:
-            # Too dark → transparent
+            # Too dark → make transparent, but respect original transparency
             # Gradual transparency based on brightness for smoother edges
-            alpha = max(0, min(255, int((pixel_brightness / threshold) * 255)))
-            result_data.append((255, 255, 255, alpha))
+            calculated_alpha = max(0, min(255, int((pixel_brightness / threshold) * 255)))
+            # Use the minimum of calculated and original alpha to preserve transparency
+            final_alpha = min(calculated_alpha, original_alpha)
+            result_data.append((255, 255, 255, final_alpha))
     
     # Create new image with white + transparency
     white_img = Image.new('RGBA', img.size)
