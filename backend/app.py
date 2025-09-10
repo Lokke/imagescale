@@ -103,6 +103,17 @@ def process_image(img, size=300, threshold=50, invert=False, alpha_threshold=30)
     pixels = list(white_img.getdata())
     found_content = False
     
+    # DEBUG: Count alpha values
+    alpha_counts = {}
+    for pixel in pixels:
+        alpha = pixel[3]
+        alpha_counts[alpha] = alpha_counts.get(alpha, 0) + 1
+    
+    print(f"DEBUG: Alpha distribution after processing:")
+    for alpha, count in sorted(alpha_counts.items()):
+        if count > 10:  # Only show significant counts
+            print(f"  Alpha {alpha}: {count} pixels")
+    
     for y in range(height):
         for x in range(width):
             pixel_alpha = pixels[y * width + x][3]
@@ -113,13 +124,22 @@ def process_image(img, size=300, threshold=50, invert=False, alpha_threshold=30)
                 max_x = max(max_x, x)
                 max_y = max(max_y, y)
     
+    print(f"DEBUG: Using alpha_threshold={alpha_threshold}")
+    print(f"DEBUG: Found content: {found_content}")
+    
     if not found_content:
+        print("DEBUG: No content found above alpha threshold!")
         # If no content found, return empty transparent image
         result = Image.new('RGBA', (size, size), (0, 0, 0, 0))
         return result
     
     # Create custom bounding box
     bbox = (min_x, min_y, max_x + 1, max_y + 1)
+    print(f"DEBUG: Custom bounding box: {bbox}")
+    
+    # Compare with PIL's bbox
+    pil_bbox = white_img.getbbox()
+    print(f"DEBUG: PIL bounding box: {pil_bbox}")
     
     # Crop to content (tight crop around visible white pixels)
     cropped = white_img.crop(bbox)
@@ -176,6 +196,8 @@ def upload_image():
     
     try:
         img = Image.open(file.stream)
+        print(f"DEBUG: Original image size: {img.size}, mode: {img.mode}")
+        print(f"DEBUG: Parameters - size={size}, threshold={threshold}, alpha_threshold={alpha_threshold}")
         
         # Process with or without inversion
         if version == 'inverted':
